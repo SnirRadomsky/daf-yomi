@@ -385,9 +385,9 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
         }}
         .page {{
             page-break-after: always;
-            margin-bottom: 30px;
-            border-bottom: 2px dashed #ccc;
-            padding-bottom: 20px;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 10px;
         }}
         h1 {{
             color: #8B4513;
@@ -431,8 +431,21 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
             if title_in_content:
                 title_in_content.decompose()
             
-            # Keep the HTML structure instead of just text
-            html += str(content_copy) if content_copy else ""
+            # Extract just the content div to avoid extra body/html structure
+            content_div = content_copy.find('div', class_='content')
+            if content_div:
+                # Clean up excessive whitespace and formatting
+                content_html = str(content_div)
+                # Remove excessive newlines and whitespace
+                content_html = re.sub(r'\n\s*\n', '\n', content_html)
+                content_html = re.sub(r'<p>\s*</p>', '', content_html)
+                html += content_html
+            else:
+                # Fallback: use the body content but clean it up
+                content_html = str(content_copy)
+                content_html = re.sub(r'\n\s*\n', '\n', content_html)
+                content_html = re.sub(r'<p>\s*</p>', '', content_html)
+                html += content_html
             
         html += '</div>\n\n'
     
