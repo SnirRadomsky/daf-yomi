@@ -247,7 +247,8 @@ def create_html_page(title, content):
             font-family: 'Times New Roman', serif;
             direction: rtl;
             text-align: right;
-            margin: 20px;
+            margin: 20px auto;
+            max-width: 800px;
             line-height: 1.6;
         }}
         h1 {{
@@ -378,7 +379,8 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
             font-family: 'Times New Roman', serif;
             direction: rtl;
             text-align: right;
-            margin: 20px;
+            margin: 20px auto;
+            max-width: 800px;
             line-height: 1.6;
         }}
         .page {{
@@ -429,7 +431,8 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
             if title_in_content:
                 title_in_content.decompose()
             
-            html += str(content_copy.get_text() if content_copy else "")
+            # Keep the HTML structure instead of just text
+            html += str(content_copy) if content_copy else ""
             
         html += '</div>\n\n'
     
