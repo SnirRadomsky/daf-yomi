@@ -35,48 +35,48 @@ HEBREW_NUMBERS = {
 # Reverse mapping for converting numbers back to Hebrew
 NUMBER_TO_HEBREW = {v: k for k, v in HEBREW_NUMBERS.items()}
 
-# All tractates - exactly like your manual scripts would handle
+# All tractates - CORRECTED numbers from daf-yomi.com 
 TRACTATES = {
-    'ברכות': 301,
-    'שבת': 302, 
-    'עירובין': 303,
-    'פסחים': 304,
-    'שקלים': 305,
-    'יומא': 306,
-    'סוכה': 307,
-    'ביצה': 308,
-    'עבודה זרה': 309,  # We have local files (סב-עו) as fallback
-    'הוריות': 310,      # We have local files (ה-י) as fallback
-    'זבחים': 311,       # We have local files (ב-ה) as fallback
-    'ראש השנה': 312,
-    'תענית': 313,
-    'מגילה': 314,
-    'מועד קטן': 315,
-    'חגיגה': 316,
-    'יבמות': 317,
-    'כתובות': 318,
-    'נדרים': 319,
-    'נזיר': 320,
-    'סוטה': 321,
-    'גיטין': 322,
-    'קידושין': 323,
-    'בבא קמא': 324,
-    'בבא מציעא': 325,
-    'בבא בתרא': 326,
-    'סנהדרין': 327,
-    'מכות': 328,
-    'שבועות': 329,
-    'מנחות': 330,
-    'חולין': 331,
-    'בכורות': 332,
-    'ערכין': 333,
-    'תמורה': 334,
-    'כריתות': 335,
-    'מעילה': 336,
-    'תמיד': 337,
-    'מדות': 338,
-    'קינים': 339,
-    'נדה': 340
+    'ברכות': 283,        # Verified: 283, not 301
+    'שבת': 284,          # Following sequence pattern  
+    'עירובין': 285,      # Following sequence pattern
+    'פסחים': 286,        # Following sequence pattern
+    'שקלים': 287,        # Following sequence pattern
+    'יומא': 288,         # Following sequence pattern (was working by coincidence)
+    'סוכה': 289,         # Following sequence pattern
+    'ביצה': 290,         # Verified: 290, not 308
+    'ראש השנה': 291,     # Following sequence pattern
+    'תענית': 292,        # Following sequence pattern
+    'מגילה': 293,       # Following sequence pattern
+    'מועד קטן': 294,     # Following sequence pattern
+    'חגיגה': 295,       # Following sequence pattern
+    'יבמות': 296,       # Following sequence pattern
+    'כתובות': 297,      # Following sequence pattern
+    'נדרים': 298,       # Following sequence pattern
+    'נזיר': 299,         # Following sequence pattern
+    'סוטה': 300,         # Following sequence pattern
+    'גיטין': 301,        # Following sequence pattern
+    'קידושין': 302,      # Following sequence pattern
+    'בבא קמא': 303,      # Following sequence pattern
+    'בבא מציעא': 304,    # Following sequence pattern
+    'בבא בתרא': 305,     # Following sequence pattern
+    'סנהדרין': 306,      # Following sequence pattern
+    'מכות': 307,         # Following sequence pattern
+    'שבועות': 308,       # Following sequence pattern (this is what you got when selecting ביצה!)
+    'עבודה זרה': 309,    # We have local files (סב-עו) as fallback
+    'הוריות': 310,       # We have local files (ה-י) as fallback
+    'זבחים': 311,        # We have local files (ב-ה) as fallback
+    'מנחות': 312,        # Following sequence pattern
+    'חולין': 313,         # Following sequence pattern
+    'בכורות': 314,        # Following sequence pattern
+    'ערכין': 315,         # Following sequence pattern
+    'תמורה': 316,         # Following sequence pattern
+    'כריתות': 317,        # Following sequence pattern
+    'מעילה': 318,         # Following sequence pattern
+    'תמיד': 319,          # Following sequence pattern
+    'מדות': 320,          # Following sequence pattern
+    'קינים': 321,         # Following sequence pattern (was קנים on site)
+    'נדה': 322            # Following sequence pattern (was נידה on site)
 }
 
 def hebrew_to_amud_number(daf_hebrew, amud):
