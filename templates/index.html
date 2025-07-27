@@ -66,19 +66,6 @@
             align-items: end;
         }
         
-        .page-input {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .page-input input {
-            flex: 1;
-        }
-        
-        .page-input select {
-            width: 80px;
-        }
-        
         .range-separator {
             text-align: center;
             font-weight: bold;
@@ -219,6 +206,74 @@
         .tractate-option.hidden {
             display: none;
         }
+        
+        .input-with-arrows {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .arrow-buttons {
+            position: absolute;
+            right: 1px;
+            top: 1px;
+            bottom: 1px;
+            display: flex;
+            flex-direction: column;
+            width: 18px;
+        }
+        
+        .arrow-btn {
+            background: #f8f8f8;
+            border: 1px solid #ccc;
+            border-left: 1px solid #ddd;
+            width: 100%;
+            height: 50%;
+            cursor: pointer;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+            user-select: none;
+        }
+        
+        .arrow-btn:hover {
+            background: #e8e8e8;
+        }
+        
+        .arrow-btn:active {
+            background: #d8d8d8;
+        }
+        
+        .arrow-btn.up {
+            border-bottom: none;
+            border-radius: 0 7px 0 0;
+        }
+        
+        .arrow-btn.down {
+            border-top: none;
+            border-radius: 0 0 7px 0;
+        }
+        
+        .page-input-container {
+            flex: 1;
+        }
+        
+        .page-input {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-with-arrows input,
+        .input-with-arrows select {
+            padding-right: 22px;
+        }
+        
+        .input-with-arrows select {
+            appearance: none;
+            background-image: none;
+        }
     </style>
 </head>
 <body>
@@ -246,24 +301,50 @@
             <div class="form-group">
                 <label>טווח דפים:</label>
                 <div class="page-range">
-                    <div class="page-input">
-                        <input type="text" id="startDaf" placeholder="ב" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
-                        <select id="startAmud" required>
-                            <option value="">עמוד</option>
-                            <option value="א">א</option>
-                            <option value="ב">ב</option>
-                        </select>
+                    <div class="page-input-container">
+                        <div class="page-input">
+                            <div class="input-with-arrows">
+                                <input type="text" id="startDaf" value="ב" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
+                                <div class="arrow-buttons">
+                                    <button type="button" class="arrow-btn up" data-target="startDaf">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="startDaf">▼</button>
+                                </div>
+                            </div>
+                            <div class="input-with-arrows">
+                                <select id="startAmud" required>
+                                    <option value="א" selected>א</option>
+                                    <option value="ב">ב</option>
+                                </select>
+                                <div class="arrow-buttons">
+                                    <button type="button" class="arrow-btn up" data-target="startAmud">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="startAmud">▼</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="range-separator">עד</div>
                     
-                    <div class="page-input">
-                        <input type="text" id="endDaf" placeholder="ה" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
-                        <select id="endAmud" required>
-                            <option value="">עמוד</option>
-                            <option value="א">א</option>
-                            <option value="ב">ב</option>
-                        </select>
+                    <div class="page-input-container">
+                        <div class="page-input">
+                            <div class="input-with-arrows">
+                                <input type="text" id="endDaf" value="ב" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
+                                <div class="arrow-buttons">
+                                    <button type="button" class="arrow-btn up" data-target="endDaf">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="endDaf">▼</button>
+                                </div>
+                            </div>
+                            <div class="input-with-arrows">  
+                                <select id="endAmud" required>
+                                    <option value="א">א</option>
+                                    <option value="ב" selected>ב</option>
+                                </select>
+                                <div class="arrow-buttons">
+                                    <button type="button" class="arrow-btn up" data-target="endAmud">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="endAmud">▼</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -461,6 +542,88 @@
             tractateDropdown.style.display = 'none';
             selectedIndex = -1;
             tractateOptions.forEach(option => option.classList.remove('selected'));
+        }
+        
+        // Page range controls functionality
+        const hebrewNumbers = [
+            'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י',
+            'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ',
+            'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל',
+            'לא', 'לב', 'לג', 'לד', 'לה', 'לו', 'לז', 'לח', 'לט', 'מ',
+            'מא', 'מב', 'מג', 'מד', 'מה', 'מו', 'מז', 'מח', 'מט', 'נ',
+            'נא', 'נב', 'נג', 'נד', 'נה', 'נו', 'נז', 'נח', 'נט', 'ס',
+            'סא', 'סב', 'סג', 'סד', 'סה', 'סו', 'סז', 'סח', 'סט', 'ע',
+            'עא', 'עב', 'עג', 'עד', 'עה', 'עו', 'עז', 'עח', 'עט', 'פ',
+            'פא', 'פב', 'פג', 'פד', 'פה', 'פו', 'פז', 'פח', 'פט', 'צ',
+            'צא', 'צב', 'צג', 'צד', 'צה', 'צו', 'צז', 'צח', 'צט', 'ק'
+        ];
+        
+        // Add keyboard event listeners for page inputs
+        document.getElementById('startDaf').addEventListener('keydown', handlePageKeydown);
+        document.getElementById('endDaf').addEventListener('keydown', handlePageKeydown);
+        document.getElementById('startAmud').addEventListener('keydown', handleAmudKeydown);
+        document.getElementById('endAmud').addEventListener('keydown', handleAmudKeydown);
+        
+        // Add click event listeners for arrow buttons
+        document.querySelectorAll('.arrow-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const target = this.dataset.target;
+                const isDown = this.classList.contains('down');
+                
+                if (target.includes('Daf')) {
+                    adjustDaf(target, isDown); // down = next/larger, up = previous/smaller
+                } else if (target.includes('Amud')) {
+                    adjustAmud(target, isDown); // down = next (א to ב), up = previous (ב to א)
+                }
+            });
+        });
+        
+        function handlePageKeydown(e) {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                adjustDaf(e.target.id, false); // Up = previous/smaller
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                adjustDaf(e.target.id, true); // Down = next/larger
+            }
+        }
+        
+        function handleAmudKeydown(e) {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                adjustAmud(e.target.id, false); // Up = previous (ב to א)
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                adjustAmud(e.target.id, true); // Down = next (א to ב)
+            }
+        }
+        
+        function adjustDaf(targetId, isNext) {
+            const input = document.getElementById(targetId);
+            const currentValue = input.value;
+            const currentIndex = hebrewNumbers.indexOf(currentValue);
+            
+            let newIndex;
+            if (isNext) {
+                newIndex = Math.min(currentIndex + 1, hebrewNumbers.length - 1);
+            } else {
+                newIndex = Math.max(currentIndex - 1, 1); // Don't go below ב (index 1)
+            }
+            
+            if (newIndex !== currentIndex && newIndex >= 1) {
+                input.value = hebrewNumbers[newIndex];
+            }
+        }
+        
+        function adjustAmud(targetId, isNext) {
+            const select = document.getElementById(targetId);
+            const currentValue = select.value;
+            
+            if (isNext && currentValue === 'א') {
+                select.value = 'ב';
+            } else if (!isNext && currentValue === 'ב') {
+                select.value = 'א';
+            }
         }
     </script>
 </body>
