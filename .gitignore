@@ -56,10 +56,23 @@ $RECYCLE.BIN/
 pages/
 combined_pages.html
 *.html
+!templates/*.html
 !example.html
 
-# Logs
+# Logs and debug files
 *.log
+app_*.log
+server.log
+debug_*.py
+test_*.py
+test_*.html
+
+# Generated files
+*_*-*.html
+horayot_*.html
+avodah_zarah_*.html
+zevachim_*.html
+shabbat_*.html
 
 # Temporary files
 *.tmp

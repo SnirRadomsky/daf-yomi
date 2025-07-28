@@ -27,14 +27,16 @@ daf-yomi/
 ├── README.md                    # This file
 ├── launch.sh                    # Web app launcher script ⚡
 ├── app.py                       # Flask web application 🌐
+├── requirements.txt             # Python dependencies
 ├── templates/
 │   └── index.html              # Web interface with Hebrew RTL support
-├── download_daf_simple.py       # CLI download script
-├── combine_pages.py             # General page combiner
-├── combine_pages_with_titles.py # Enhanced combiner with titles
-├── combine_avodah_zarah.py      # Avodah Zarah specific combiner
-├── combined_pages.html          # Output file (generated)
-└── pages/                       # Directory for downloaded HTML files
+├── cli-tools/                  # Legacy command-line tools
+│   ├── README.md               # CLI tools documentation
+│   ├── download_daf_simple.py  # CLI download script
+│   ├── combine_pages.py        # General page combiner
+│   ├── combine_pages_with_titles.py # Enhanced combiner
+│   └── combine_avodah_zarah.py # Avodah Zarah specific combiner
+└── pages/                      # Downloaded HTML files (git-ignored)
 ```
 
 ## 🚀 Quick Start
@@ -57,59 +59,37 @@ This will:
 3. **Download**: Click "הורד דפים" and watch the real-time progress bar
 4. **Get File**: Downloads automatically when complete with informative filenames
 
-### Option 2: Command Line Tools
+### Option 2: Command Line Tools (Legacy)
 
-**1. Download Daf Yomi Content:**
-```bash
-python download_daf_simple.py
-```
+See `cli-tools/README.md` for documentation on the original command-line scripts.
 
-**2. Combine Pages for Printing:**
-```bash
-python combine_pages.py
-```
+## 🛠️ Web Application Components
 
-**3. Print Your Study Materials:**
-1. Open `combined_pages.html` in your web browser
-2. Press `Ctrl+P` (Windows/Linux) or `Cmd+P` (Mac)
-3. Print your combined Daf Yomi pages!
-
-## 🛠️ Available Scripts
-
-### `download_daf_simple.py`
-Downloads content directly from daf-yomi.com using HTTP requests.
+### `app.py`
+Flask web server with real-time progress tracking and Hebrew interface.
 
 **Features:**
-- Hebrew numeral to number conversion
-- Automatic file naming
-- Error handling for failed downloads
-- Support for different tractates
+- Server-Sent Events for progress updates
+- Hebrew number conversion system
+- Informative filename generation
+- Automatic file cleanup
 
-### `combine_pages.py`
-Basic page combiner with essential features.
-
-**Features:**
-- Automatic sorting by page order
-- RTL text direction support
-- Print-optimized CSS
-- Page break insertion
-
-### `combine_pages_with_titles.py`
-Enhanced combiner with additional title formatting.
+### `templates/index.html`
+Modern Hebrew RTL web interface.
 
 **Features:**
-- All features of basic combiner
-- Enhanced page titles
-- Better visual separation
-- Improved readability
+- Searchable tractate selection
+- Keyboard navigation support
+- Real-time progress visualization
+- Responsive design
 
-### `combine_avodah_zarah.py`
-Specialized combiner for Avodah Zarah tractate.
+### `launch.sh`
+One-click launcher script for the web application.
 
 **Features:**
-- Tractate-specific optimizations
-- Custom sorting logic
-- Specialized formatting
+- Automatic dependency checking
+- Port conflict resolution
+- Cross-platform browser opening
 
 ## 📋 Requirements
 

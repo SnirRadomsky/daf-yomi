@@ -20,7 +20,12 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(true)",
-      "mcp__playwright__browser_snapshot"
+      "mcp__playwright__browser_snapshot",
+      "Bash(chmod:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(echo $SHELL)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
