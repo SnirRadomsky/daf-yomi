@@ -42,6 +42,50 @@ HEBREW_NUMBERS = {
 # Reverse mapping for converting numbers back to Hebrew
 NUMBER_TO_HEBREW = {v: k for k, v in HEBREW_NUMBERS.items()}
 
+# Hebrew to English tractate name mapping
+TRACTATE_TRANSLITERATIONS = {
+    'ברכות': 'berakhot',
+    'שבת': 'shabbat',
+    'עירובין': 'eruvin',
+    'פסחים': 'pesachim',
+    'שקלים': 'shekalim',
+    'יומא': 'yoma',
+    'סוכה': 'sukkah',
+    'ביצה': 'beitzah',
+    'ראש השנה': 'rosh_hashanah',
+    'תענית': 'taanit',
+    'מגילה': 'megillah',
+    'מועד קטן': 'moed_katan',
+    'חגיגה': 'chagigah',
+    'יבמות': 'yevamot',
+    'כתובות': 'ketubot',
+    'נדרים': 'nedarim',
+    'נזיר': 'nazir',
+    'סוטה': 'sotah',
+    'גיטין': 'gittin',
+    'קידושין': 'kiddushin',
+    'בבא קמא': 'bava_kamma',
+    'בבא מציעא': 'bava_metzia',
+    'בבא בתרא': 'bava_batra',
+    'סנהדרין': 'sanhedrin',
+    'מכות': 'makkot',
+    'שבועות': 'shevuot',
+    'עבודה זרה': 'avodah_zarah',
+    'הוריות': 'horayot',
+    'זבחים': 'zevachim',
+    'מנחות': 'menachot',
+    'חולין': 'chullin',
+    'בכורות': 'bekhorot',
+    'ערכין': 'arakhin',
+    'תמורה': 'temurah',
+    'כריתות': 'keritot',
+    'מעילה': 'meilah',
+    'תמיד': 'tamid',
+    'מדות': 'middot',
+    'קינים': 'kinnim',
+    'נדה': 'niddah'
+}
+
 # All tractates - CORRECTED numbers from daf-yomi.com 
 TRACTATES = {
     'ברכות': 283,        # Verified: 283, not 301
@@ -96,6 +140,34 @@ def hebrew_to_amud_number(daf_hebrew, amud):
         return (page_num - 1) * 2 + 1
     else:  # ב
         return (page_num - 1) * 2 + 2
+
+def create_informative_filename(tractate_name, start_daf, start_amud, end_daf, end_amud):
+    """
+    Create informative filename following pattern:
+    עבודה זרה דף עא עמוד א - דף עו עמוד ב -> avodah_zarah_71-76.html
+    """
+    # Get English transliteration
+    english_name = TRACTATE_TRANSLITERATIONS.get(tractate_name, tractate_name.replace(' ', '_'))
+    
+    # Convert Hebrew numbers to Arabic numbers
+    start_num = HEBREW_NUMBERS.get(start_daf, 0)
+    end_num = HEBREW_NUMBERS.get(end_daf, 0)
+    
+    # Convert Hebrew amud to English
+    amud_map = {'א': 'a', 'ב': 'b'}
+    start_amud_en = amud_map.get(start_amud, start_amud.lower())
+    end_amud_en = amud_map.get(end_amud, end_amud.lower())
+    
+    # Handle single page case
+    if start_num == end_num and start_amud == end_amud:
+        return f"{english_name}_{start_num}{start_amud_en}.html"
+    
+    # Handle same daf, different amud
+    if start_num == end_num:
+        return f"{english_name}_{start_num}{start_amud_en}-{end_amud_en}.html"
+    
+    # Handle different dafim - use page range
+    return f"{english_name}_{start_num}-{end_num}.html"
 
 def download_daf_page(massechet_num, amud_num):
     """Download a single daf page - EXACTLY like your manual scripts"""
@@ -491,8 +563,8 @@ def download_pages_background(task_id, tractate_name, start_daf, start_amud, end
         # Create combined HTML
         combined_html = create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, end_amud)
         
-        # Save to temporary file
-        filename = f"{tractate_name}_{start_daf}{start_amud}-{end_daf}{end_amud}.html"
+        # Save to temporary file with informative name
+        filename = create_informative_filename(tractate_name, start_daf, start_amud, end_daf, end_amud)
         temp_file = os.path.join(temp_dir, filename)
         
         with open(temp_file, 'w', encoding='utf-8') as f:
