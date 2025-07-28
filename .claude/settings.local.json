@@ -25,7 +25,8 @@
       "Bash(touch:*)",
       "Bash(cp:*)",
       "Bash(echo $SHELL)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
