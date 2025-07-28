@@ -1,9 +1,18 @@
 # Daf Yomi Tools 📜
 
-A collection of Python tools for downloading, organizing, and formatting Hebrew Talmud pages for study and printing. Perfect for Daf Yomi learners who want to combine multiple pages into a single, printer-friendly document.
+A collection of Python tools for downloading, organizing, and formatting Hebrew Talmud pages for study and printing. Includes both command-line scripts and a modern web application with real-time progress tracking. Perfect for Daf Yomi learners who want to combine multiple pages into a single, printer-friendly document.
 
 ## 🎯 Features
 
+### Web Application (New!)
+- 🌐 **Modern Web Interface**: Easy-to-use Hebrew RTL web interface
+- 📊 **Real-time Progress Bar**: See download progress and current page being processed
+- 🔍 **Searchable Tractate Selection**: Type to search tractates (e.g., "ירו" finds "עירובין")
+- 📁 **Informative Filenames**: Downloads have meaningful names like `avodah_zarah_71-76.html`
+- ⌨️ **Keyboard Navigation**: Use arrow keys to increment/decrement page numbers
+- ⚡ **One-Click Launch**: `./launch.sh` starts server and opens browser automatically
+
+### Command Line Tools
 - **Download Daf Yomi Content**: Fetch Hebrew Talmud pages directly from daf-yomi.com
 - **Smart Page Combination**: Merge multiple HTML pages with proper Hebrew (RTL) formatting
 - **Intelligent Sorting**: Automatically sorts pages by tractate, page number, and side (A/B)
@@ -16,8 +25,11 @@ A collection of Python tools for downloading, organizing, and formatting Hebrew 
 ```
 daf-yomi/
 ├── README.md                    # This file
-├── README_download.md           # Download instructions
-├── download_daf_simple.py       # Main download script
+├── launch.sh                    # Web app launcher script ⚡
+├── app.py                       # Flask web application 🌐
+├── templates/
+│   └── index.html              # Web interface with Hebrew RTL support
+├── download_daf_simple.py       # CLI download script
 ├── combine_pages.py             # General page combiner
 ├── combine_pages_with_titles.py # Enhanced combiner with titles
 ├── combine_avodah_zarah.py      # Avodah Zarah specific combiner
@@ -27,36 +39,40 @@ daf-yomi/
 
 ## 🚀 Quick Start
 
-### 1. Download Daf Yomi Content
+### Option 1: Web Application (Recommended)
 
+**Launch the web app:**
+```bash
+./launch.sh
+```
+
+This will:
+- Start the Flask web server automatically
+- Open your browser to http://localhost:5001
+- Provide a modern interface for downloading Daf Yomi pages
+
+**Using the web interface:**
+1. **Select Tractate**: Type to search (e.g., "בבא" shows all בבא tractates)
+2. **Choose Page Range**: Use default ב עמוד א עד ב עמוד ב or customize with arrows
+3. **Download**: Click "הורד דפים" and watch the real-time progress bar
+4. **Get File**: Downloads automatically when complete with informative filenames
+
+### Option 2: Command Line Tools
+
+**1. Download Daf Yomi Content:**
 ```bash
 python download_daf_simple.py
 ```
 
-This script will:
-- Download Hebrew Talmud pages from daf-yomi.com
-- Save them as HTML files in the `pages` directory
-- Handle Hebrew numeral conversion automatically
-
-### 2. Combine Pages for Printing
-
+**2. Combine Pages for Printing:**
 ```bash
 python combine_pages.py
 ```
 
-This will:
-- Read all HTML files from the `pages` directory
-- Sort them intelligently by tractate and page number
-- Create a single `combined_pages.html` file
-- Format with proper RTL direction for Hebrew text
-- Add page breaks for clean printing
-
-### 3. Print Your Study Materials
-
+**3. Print Your Study Materials:**
 1. Open `combined_pages.html` in your web browser
 2. Press `Ctrl+P` (Windows/Linux) or `Cmd+P` (Mac)
-3. Adjust print settings as needed
-4. Print your combined Daf Yomi pages!
+3. Print your combined Daf Yomi pages!
 
 ## 🛠️ Available Scripts
 
