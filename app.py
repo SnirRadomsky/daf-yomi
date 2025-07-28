@@ -4,7 +4,7 @@ Daf Yomi Web Application
 Flask web server for downloading and combining Daf Yomi pages
 """
 
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, Response
 import requests
 import os
 import re
@@ -13,8 +13,15 @@ import zipfile
 from pathlib import Path
 from bs4 import BeautifulSoup
 from datetime import datetime
+import json
+import time
+import uuid
+from threading import Thread
 
 app = Flask(__name__)
+
+# Global dictionary to store progress data
+progress_data = {}
 
 # Hebrew number mappings
 HEBREW_NUMBERS = {
@@ -272,9 +279,65 @@ def index():
     """Main page with form for selecting tractate and pages"""
     return render_template('index.html', tractates=TRACTATES)
 
+@app.route('/api/progress/<task_id>')
+def progress_stream(task_id):
+    """Server-Sent Events endpoint for progress updates"""
+    def generate():
+        while task_id in progress_data:
+            data = progress_data[task_id]
+            yield f"data: {json.dumps(data)}\n\n"
+            
+            if data.get('status') in ['completed', 'error']:
+                # Clean up completed tasks after sending final update
+                time.sleep(1)
+                if task_id in progress_data:
+                    del progress_data[task_id]
+                break
+                
+            time.sleep(0.5)  # Update every 500ms
+    
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/api/download-file/<task_id>')
+def download_completed_file(task_id):
+    """Download the completed file"""
+    if task_id not in progress_data:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    data = progress_data[task_id]
+    if data.get('status') != 'completed':
+        return jsonify({'error': 'Task not completed'}), 400
+    
+    file_path = data.get('file_path')
+    filename = data.get('filename')
+    temp_dir = data.get('temp_dir')
+    
+    if not file_path or not os.path.exists(file_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    def cleanup_after_send():
+        """Clean up temporary files after sending"""
+        try:
+            if temp_dir and os.path.exists(temp_dir):
+                import shutil
+                shutil.rmtree(temp_dir)
+                print(f"DEBUG: Cleaned up temp dir: {temp_dir}")
+        except Exception as e:
+            print(f"ERROR: Failed to cleanup temp dir: {e}")
+        
+        # Remove from progress_data
+        if task_id in progress_data:
+            del progress_data[task_id]
+    
+    # Schedule cleanup after response is sent
+    from threading import Timer
+    Timer(2.0, cleanup_after_send).start()  # Clean up after 2 seconds
+    
+    return send_file(file_path, as_attachment=True, download_name=filename)
+
 @app.route('/api/download', methods=['POST'])
 def download_pages():
-    """API endpoint to download and combine pages"""
+    """API endpoint to start download task and return task ID"""
     try:
         print(f"DEBUG: Received download request")
         data = request.json
@@ -303,66 +366,154 @@ def download_pages():
         if start_daf not in HEBREW_NUMBERS or end_daf not in HEBREW_NUMBERS:
             return jsonify({'error': 'Invalid Hebrew page numbers'}), 400
             
-        # Create temporary directory for pages
-        with tempfile.TemporaryDirectory() as temp_dir:
-            pages = []
-            
-            start_num = HEBREW_NUMBERS[start_daf]
-            end_num = HEBREW_NUMBERS[end_daf]
-            
-            # Download pages
-            for daf_num in range(start_num, end_num + 1):
-                for amud in ['א', 'ב']:
-                    # Skip if we're at start daf and before start amud
-                    if daf_num == start_num and start_amud == 'ב' and amud == 'א':
-                        continue
-                    # Skip if we're at end daf and after end amud  
-                    if daf_num == end_num and end_amud == 'א' and amud == 'ב':
-                        continue
-                        
-                    daf_hebrew = NUMBER_TO_HEBREW[daf_num]
-                    amud_number = hebrew_to_amud_number(daf_hebrew, amud)
-                    
-                    if amud_number == 0:
-                        continue
-                        
-                    # Download the page
-                    print(f"DEBUG: Downloading {daf_hebrew} {amud} (amud_number={amud_number})")
-                    html_content = download_daf_page(massechet_num, amud_number)
-                    print(f"DEBUG: html_content length: {len(html_content) if html_content else 0}")
-                    
-                    if html_content:
-                        title, content = extract_content_and_title(html_content)
-                        print(f"DEBUG: title='{title[:50] if title else None}...', content={'Yes' if content else 'No'}")
-                        
-                        if title and content:
-                            complete_html = create_html_page(title, str(content))
-                            pages.append({'title': title, 'content': complete_html})
-                            print(f"DEBUG: Added page to list, total pages: {len(pages)}")
-                        else:
-                            print(f"DEBUG: Failed to extract title/content from page")
-                    else:
-                        print(f"DEBUG: No html_content for {daf_hebrew} {amud}")
-            
-            print(f"DEBUG: Final pages count: {len(pages)}")
-            if not pages:
-                error_msg = f'Unable to download {tractate_name} pages. The daf-yomi.com site appears to be blocking automated requests (likely Cloudflare protection). This affects both the web app and manual scripts. You may need to: 1) Try from a different network, 2) Use a VPN, or 3) Wait for the site restrictions to be lifted.'
-                return jsonify({'error': error_msg}), 404
-                
-            # Create combined HTML
-            combined_html = create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, end_amud)
-            
-            # Save to temporary file
-            filename = f"{tractate_name}_{start_daf}{start_amud}-{end_daf}{end_amud}.html"
-            temp_file = os.path.join(temp_dir, filename)
-            
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                f.write(combined_html)
-                
-            return send_file(temp_file, as_attachment=True, download_name=filename)
-            
+        # Generate unique task ID
+        task_id = str(uuid.uuid4())
+        
+        # Initialize progress data
+        progress_data[task_id] = {
+            'status': 'starting',
+            'progress': 0,
+            'current_page': '',
+            'total_pages': 0,
+            'completed_pages': 0,
+            'message': 'מתחיל הורדה...'
+        }
+        
+        # Start background download task
+        thread = Thread(target=download_pages_background, args=(
+            task_id, tractate_name, start_daf, start_amud, end_daf, end_amud, massechet_num
+        ))
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({'task_id': task_id})
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def download_pages_background(task_id, tractate_name, start_daf, start_amud, end_daf, end_amud, massechet_num):
+    """Background task to download pages with progress updates"""
+    try:
+        # Calculate total number of pages to download
+        start_num = HEBREW_NUMBERS[start_daf]
+        end_num = HEBREW_NUMBERS[end_daf]
+        
+        total_pages = 0
+        for daf_num in range(start_num, end_num + 1):
+            for amud in ['א', 'ב']:
+                # Skip if we're at start daf and before start amud
+                if daf_num == start_num and start_amud == 'ב' and amud == 'א':
+                    continue
+                # Skip if we're at end daf and after end amud  
+                if daf_num == end_num and end_amud == 'א' and amud == 'ב':
+                    continue
+                total_pages += 1
+        
+        # Update progress with total pages
+        progress_data[task_id].update({
+            'total_pages': total_pages,
+            'status': 'downloading',
+            'message': 'מוריד דפים...'
+        })
+            
+        # Create a temporary file that persists until explicitly deleted
+        temp_dir = tempfile.mkdtemp()
+        pages = []
+        completed_pages = 0
+        
+        # Download pages with progress updates
+        for daf_num in range(start_num, end_num + 1):
+            for amud in ['א', 'ב']:
+                # Skip if we're at start daf and before start amud
+                if daf_num == start_num and start_amud == 'ב' and amud == 'א':
+                    continue
+                # Skip if we're at end daf and after end amud  
+                if daf_num == end_num and end_amud == 'א' and amud == 'ב':
+                    continue
+                    
+                daf_hebrew = NUMBER_TO_HEBREW[daf_num]
+                current_page = f"{daf_hebrew} ע{amud}"
+                
+                # Update progress
+                progress_data[task_id].update({
+                    'current_page': current_page,
+                    'completed_pages': completed_pages,
+                    'progress': int((completed_pages / total_pages) * 100),
+                    'message': f'מוריד דף {current_page}...'
+                })
+                
+                amud_number = hebrew_to_amud_number(daf_hebrew, amud)
+                
+                if amud_number == 0:
+                    completed_pages += 1
+                    continue
+                    
+                # Download the page
+                print(f"DEBUG: Downloading {daf_hebrew} {amud} (amud_number={amud_number})")
+                html_content = download_daf_page(massechet_num, amud_number)
+                
+                if html_content:
+                    title, content = extract_content_and_title(html_content)
+                    
+                    if title and content:
+                        complete_html = create_html_page(title, str(content))
+                        pages.append({'title': title, 'content': complete_html})
+                        print(f"DEBUG: Added page to list, total pages: {len(pages)}")
+                    else:
+                        print(f"DEBUG: Failed to extract title/content from page")
+                else:
+                    print(f"DEBUG: No html_content for {daf_hebrew} {amud}")
+                
+                completed_pages += 1
+                
+                # Update progress after each page
+                progress_data[task_id].update({
+                    'completed_pages': completed_pages,
+                    'progress': int((completed_pages / total_pages) * 100)
+                })
+        
+        print(f"DEBUG: Final pages count: {len(pages)}")
+        if not pages:
+            error_msg = f'Unable to download {tractate_name} pages. The daf-yomi.com site appears to be blocking automated requests (likely Cloudflare protection). This affects both the web app and manual scripts. You may need to: 1) Try from a different network, 2) Use a VPN, or 3) Wait for the site restrictions to be lifted.'
+            progress_data[task_id].update({
+                'status': 'error',
+                'message': error_msg
+            })
+            return
+            
+        # Update progress - creating combined file
+        progress_data[task_id].update({
+            'status': 'processing',
+            'progress': 100,
+            'message': 'יוצר קובץ מאוחד...'
+        })
+            
+        # Create combined HTML
+        combined_html = create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, end_amud)
+        
+        # Save to temporary file
+        filename = f"{tractate_name}_{start_daf}{start_amud}-{end_daf}{end_amud}.html"
+        temp_file = os.path.join(temp_dir, filename)
+        
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            f.write(combined_html)
+        
+        # Update progress - completed
+        progress_data[task_id].update({
+            'status': 'completed',
+            'progress': 100,
+            'message': 'הושלם! הקובץ מוכן להורדה',
+            'filename': filename,
+            'file_path': temp_file,
+            'temp_dir': temp_dir  # Store temp_dir for cleanup later
+        })
+            
+    except Exception as e:
+        print(f"ERROR in background task: {e}")
+        progress_data[task_id].update({
+            'status': 'error',
+            'message': f'שגיאה: {str(e)}'
+        })
 
 def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, end_amud):
     """Create combined HTML from multiple pages"""

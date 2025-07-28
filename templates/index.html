@@ -137,6 +137,41 @@
             margin-left: 10px;
         }
         
+        .progress-container {
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 0;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 20px;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .current-page {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+            color: #555;
+            display: none;
+        }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -354,10 +389,20 @@
             </button>
         </form>
         
+        <div id="progressContainer" class="progress-container">
+            <div id="progressBar" class="progress-bar">
+                <div id="progressText" class="progress-text">0%</div>
+            </div>
+        </div>
+        
+        <div id="currentPage" class="current-page"></div>
+        
         <div id="status" class="status"></div>
     </div>
 
     <script>
+        let currentEventSource = null;
+        
         document.getElementById('downloadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -376,11 +421,14 @@
                 return;
             }
             
-            // Show loading status
-            showStatus('מוריד דפים, אנא המתן...', 'loading');
+            // Show loading status and progress bar
+            showStatus('מתחיל הורדה...', 'loading');
+            showProgress(true);
+            updateProgress(0, 'מתחיל...', '');
             document.getElementById('downloadBtn').disabled = true;
             
             try {
+                // Start the download task
                 const response = await fetch('/api/download', {
                     method: 'POST',
                     headers: {
@@ -390,11 +438,70 @@
                 });
                 
                 if (response.ok) {
-                    // Get filename from response headers or create one
-                    const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 
-                                    `${formData.tractate}_${formData.start_daf}${formData.start_amud}-${formData.end_daf}${formData.end_amud}.html`;
+                    const data = await response.json();
+                    const taskId = data.task_id;
                     
-                    // Download the file
+                    // Start listening for progress updates
+                    startProgressMonitoring(taskId, formData);
+                } else {
+                    const error = await response.json();
+                    showStatus(`שגיאה: ${error.error}`, 'error');
+                    showProgress(false);
+                    document.getElementById('downloadBtn').disabled = false;
+                }
+            } catch (error) {
+                showStatus(`שגיאת רשת: ${error.message}`, 'error');
+                showProgress(false);
+                document.getElementById('downloadBtn').disabled = false;
+            }
+        });
+        
+        function startProgressMonitoring(taskId, formData) {
+            // Close any existing event source
+            if (currentEventSource) {
+                currentEventSource.close();
+            }
+            
+            currentEventSource = new EventSource(`/api/progress/${taskId}`);
+            
+            currentEventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                updateProgress(data.progress, data.message, data.current_page);
+                
+                if (data.status === 'completed') {
+                    showStatus('הושלם! מוריד קובץ...', 'success');
+                    downloadCompletedFile(taskId);
+                    currentEventSource.close();
+                    currentEventSource = null;
+                } else if (data.status === 'error') {
+                    showStatus(`שגיאה: ${data.message}`, 'error');
+                    showProgress(false);
+                    document.getElementById('downloadBtn').disabled = false;
+                    currentEventSource.close();
+                    currentEventSource = null;
+                }
+            };
+            
+            currentEventSource.onerror = function() {
+                showStatus('שגיאה בחיבור לשרת', 'error');
+                showProgress(false);
+                document.getElementById('downloadBtn').disabled = false;
+                if (currentEventSource) {
+                    currentEventSource.close();
+                    currentEventSource = null;
+                }
+            };
+        }
+        
+        async function downloadCompletedFile(taskId) {
+            try {
+                const response = await fetch(`/api/download-file/${taskId}`);
+                
+                if (response.ok) {
+                    const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 
+                                    'download.html';
+                    
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -407,15 +514,39 @@
                     
                     showStatus('הקובץ הורד בהצלחה! 🎉', 'success');
                 } else {
-                    const error = await response.json();
-                    showStatus(`שגיאה: ${error.error}`, 'error');
+                    showStatus('שגיאה בהורדת הקובץ', 'error');
                 }
             } catch (error) {
-                showStatus(`שגיאת רשת: ${error.message}`, 'error');
+                showStatus(`שגיאה בהורדת הקובץ: ${error.message}`, 'error');
             } finally {
+                showProgress(false);
                 document.getElementById('downloadBtn').disabled = false;
             }
-        });
+        }
+        
+        function showProgress(show) {
+            const container = document.getElementById('progressContainer');
+            const currentPage = document.getElementById('currentPage');
+            container.style.display = show ? 'block' : 'none';
+            currentPage.style.display = show ? 'block' : 'none';
+        }
+        
+        function updateProgress(percentage, message, currentPage) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const currentPageEl = document.getElementById('currentPage');
+            
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = percentage + '%';
+            
+            if (currentPage) {
+                currentPageEl.textContent = `דף נוכחי: ${currentPage}`;
+            }
+            
+            if (message) {
+                showStatus(message, 'loading');
+            }
+        }
         
         function showStatus(message, type) {
             const statusEl = document.getElementById('status');
