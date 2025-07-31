@@ -608,9 +608,9 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
         }}
         .page {{
             page-break-after: always;
-            margin-bottom: 15px;
+            margin-bottom: 0px;
             border-bottom: 1px dashed #ccc;
-            padding-bottom: 10px;
+            padding-bottom: 0px;
         }}
         h1 {{
             color: #8B4513;
@@ -621,7 +621,11 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
         .page h1 {{
             text-align: right;
             font-size: 1.5em;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
+            margin-top: 0px;
+        }}
+        .page p {{
+            margin: 0.2em 0;
         }}
         @media print {{
             .page {{
@@ -657,17 +661,23 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
             # Extract just the content div to avoid extra body/html structure
             content_div = content_copy.find('div', class_='content')
             if content_div:
-                # Clean up excessive whitespace and formatting
+                # More aggressive whitespace cleanup
                 content_html = str(content_div)
                 # Remove excessive newlines and whitespace
-                content_html = re.sub(r'\n\s*\n', '\n', content_html)
+                content_html = re.sub(r'\n\s*\n+', '\n', content_html)
                 content_html = re.sub(r'<p>\s*</p>', '', content_html)
+                # Remove excessive spacing between paragraphs
+                content_html = re.sub(r'</p>\s*<p>', '</p><p>', content_html)
+                # Minimize margins and padding in paragraphs
+                content_html = re.sub(r'<p>', '<p style="margin:0.2em 0;">', content_html)
                 html += content_html
             else:
                 # Fallback: use the body content but clean it up
                 content_html = str(content_copy)
-                content_html = re.sub(r'\n\s*\n', '\n', content_html)
+                content_html = re.sub(r'\n\s*\n+', '\n', content_html)
                 content_html = re.sub(r'<p>\s*</p>', '', content_html)
+                content_html = re.sub(r'</p>\s*<p>', '</p><p>', content_html)
+                content_html = re.sub(r'<p>', '<p style="margin:0.2em 0;">', content_html)
                 html += content_html
             
         html += '</div>\n\n'

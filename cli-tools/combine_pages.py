@@ -67,9 +67,9 @@ with open(output_file, "w", encoding="utf-8") as out_file:
         }
         .page {
             page-break-after: always;
-            margin-bottom: 30px;
+            margin-bottom: 0px;
             border-bottom: 2px dashed #ccc;
-            padding-bottom: 20px;
+            padding-bottom: 0px;
         }
         h1 {
             color: #8B4513;
