@@ -4,9 +4,10 @@ Simple Daf Yomi content downloader
 Downloads content directly from daf-yomi.com using HTTP requests
 """
 
-import requests
+from curl_cffi import requests
 import os
 import re
+import time
 from bs4 import BeautifulSoup
 
 def hebrew_to_amud_number(daf_hebrew, amud):
@@ -43,18 +44,18 @@ def hebrew_to_amud_number(daf_hebrew, amud):
         return (page_num - 1) * 2 + 2
 
 def download_daf_page(massechet_num, amud_num):
-    """Download a single daf page"""
+    """Download a single daf page using curl_cffi with browser impersonation"""
     url = f"https://daf-yomi.com/Dafyomi_Page.aspx?vt=5&massechet={massechet_num}&amud={amud_num}&fs=0"
-    
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    
+
     try:
-        response = requests.get(url, headers=headers)
+        # Add small delay to be respectful
+        time.sleep(2)
+
+        # Use curl_cffi with Chrome 120 impersonation (bypasses Cloudflare)
+        response = requests.get(url, impersonate='chrome120', timeout=30)
         response.raise_for_status()
         return response.text
-    except requests.RequestException as e:
+    except Exception as e:
         print(f"Error downloading {url}: {e}")
         return None
 
@@ -206,7 +207,8 @@ def download_daf_range(massechet_num, start_daf, start_amud, end_daf, end_amud):
                     complete_html = create_html_page(title, str(content), url)
                     
                     # Clean filename
-                    filename = f"{title.replace('\"', '').replace('/', '_')}.html"
+                    clean_title = title.replace('"', '').replace('/', '_')
+                    filename = f"{clean_title}.html"
                     filename = re.sub(r'[<>:"|?*]', '_', filename)
                     
                     # Save file

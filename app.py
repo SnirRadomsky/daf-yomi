@@ -5,7 +5,7 @@ Flask web server for downloading and combining Daf Yomi pages
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, Response
-import requests
+from curl_cffi import requests
 import os
 import re
 import tempfile
@@ -170,29 +170,28 @@ def create_informative_filename(tractate_name, start_daf, start_amud, end_daf, e
     return f"{english_name}_{start_num}-{end_num}.html"
 
 def download_daf_page(massechet_num, amud_num):
-    """Download a single daf page - EXACTLY like your manual scripts"""
+    """Download a single daf page using curl_cffi with browser impersonation"""
     url = f"https://daf-yomi.com/Dafyomi_Page.aspx?vt=5&massechet={massechet_num}&amud={amud_num}&fs=0"
-    
-    # Use EXACT same headers as your working manual script
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    
+
     try:
         print(f"Attempting real download: {url}")
-        response = requests.get(url, headers=headers)
+        # Add small delay to be respectful
+        time.sleep(0.2)
+
+        # Use curl_cffi with Chrome 120 impersonation (bypasses Cloudflare)
+        response = requests.get(url, impersonate='chrome120', timeout=30)
         response.raise_for_status()
         print(f"SUCCESS: Downloaded {len(response.text)} characters from real site")
         return response.text
-    except requests.RequestException as e:
+    except Exception as e:
         print(f"Real download failed: {e}")
-        
+
         # Try local files as fallback for tractates we have
         local_content = try_load_existing_page(massechet_num, amud_num)
         if local_content:
             print(f"Using local file as fallback")
             return local_content
-        
+
         print(f"No local fallback available")
         return None
 
