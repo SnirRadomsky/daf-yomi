@@ -606,10 +606,9 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
             line-height: 1.6;
         }}
         .page {{
-            page-break-after: always;
-            margin-bottom: 0px;
+            margin-bottom: 0;
             border-bottom: 1px dashed #ccc;
-            padding-bottom: 0px;
+            padding-bottom: 10px;
         }}
         h1 {{
             color: #8B4513;
@@ -628,7 +627,6 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
         }}
         @media print {{
             .page {{
-                page-break-after: always;
                 border-bottom: none;
             }}
         }}
