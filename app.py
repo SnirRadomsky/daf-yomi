@@ -263,8 +263,10 @@ def extract_content_and_title(html_content):
     
     soup = BeautifulSoup(html_content, 'html.parser')
     
-    # Extract Hebrew title
-    title_element = soup.find('h1')
+    # Extract Hebrew title - prefer the specific page title element from daf-yomi.com
+    title_element = soup.find('h1', id='ContentPlaceHolderMain_hdrMassechet2')
+    if not title_element:
+        title_element = soup.find('h1')
     if title_element:
         title = title_element.get_text().strip()
     else:
@@ -278,7 +280,24 @@ def extract_content_and_title(html_content):
         print("DEBUG: Found .content div in processed file")
         return title, content_div
     
-    # For raw files from daf-yomi.com, look for פירוש שטיינזלץ section
+    # For raw files from daf-yomi.com, look for the clsContainer that wraps the Steinsaltz content
+    # Structure: <div class="clsContainer"><h2>שטיינזלץ</h2><div class="clsBody">...</div></div>
+    # Try to find the clsBody directly inside a clsContainer with a שטיינזלץ h2
+    for container in soup.find_all('div', class_='clsContainer'):
+        h2 = container.find('h2', string=lambda text: text and 'שטיינזלץ' in text)
+        if h2:
+            cls_body = container.find('div', class_='clsBody')
+            if cls_body:
+                print("DEBUG: Found שטיינזלץ clsBody in clsContainer")
+                return title, cls_body
+
+    # Fallback: look for ContentPlaceHolderMain_divTextWrapper
+    text_wrapper = soup.find('div', id='ContentPlaceHolderMain_divTextWrapper')
+    if text_wrapper:
+        print("DEBUG: Found ContentPlaceHolderMain_divTextWrapper")
+        return title, text_wrapper
+
+    # Fallback: look for פירוש שטיינזלץ section (legacy format)
     steinsaltz_heading = soup.find('h2', string=lambda text: text and 'פירוש שטיינזלץ' in text)
     if steinsaltz_heading:
         print("DEBUG: Found פירוש שטיינזלץ section in raw file")
