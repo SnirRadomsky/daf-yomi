@@ -3,13 +3,14 @@ name: Mirror to SnirRadomsky
 on:
   push:
     branches:
-      - "**"
+      - '**'
   delete:
     branches:
-      - "**"
+      - '**'
 
 jobs:
   mirror:
+    if: github.repository_owner == 'SnirR'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout full history
@@ -25,4 +26,3 @@ jobs:
           git remote add mirror "https://x-access-token:${MIRROR_TOKEN}@github.com/SnirRadomsky/daf-yomi.git"
           git push mirror --all --force
           git push mirror --tags --force
-
