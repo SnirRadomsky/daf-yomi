@@ -3,10 +3,10 @@ name: Mirror to SnirRadomsky
 on:
   push:
     branches:
-      - '**'
+      - "**"
   delete:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   mirror:
@@ -16,9 +16,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Push mirror to SnirRadomsky/daf-yomi
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
         run: |
-          git remote add mirror https://x-access-token:${{ secrets.MIRROR_TOKEN }}@github.com/SnirRadomsky/daf-yomi.git
+          git remote add mirror "https://x-access-token:${MIRROR_TOKEN}@github.com/SnirRadomsky/daf-yomi.git"
           git push mirror --all --force
           git push mirror --tags --force
+
