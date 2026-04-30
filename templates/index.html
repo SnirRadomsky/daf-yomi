@@ -341,8 +341,8 @@
                             <div class="input-with-arrows">
                                 <input type="text" id="startDaf" value="ב" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
                                 <div class="arrow-buttons">
-                                    <button type="button" class="arrow-btn up" data-target="startDaf">▲</button>
-                                    <button type="button" class="arrow-btn down" data-target="startDaf">▼</button>
+                                    <button type="button" class="arrow-btn up" data-target="startDaf" tabindex="-1">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="startDaf" tabindex="-1">▼</button>
                                 </div>
                             </div>
                             <div class="input-with-arrows">
@@ -351,8 +351,8 @@
                                     <option value="ב">ב</option>
                                 </select>
                                 <div class="arrow-buttons">
-                                    <button type="button" class="arrow-btn up" data-target="startAmud">▲</button>
-                                    <button type="button" class="arrow-btn down" data-target="startAmud">▼</button>
+                                    <button type="button" class="arrow-btn up" data-target="startAmud" tabindex="-1">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="startAmud" tabindex="-1">▼</button>
                                 </div>
                             </div>
                         </div>
@@ -365,8 +365,8 @@
                             <div class="input-with-arrows">
                                 <input type="text" id="endDaf" value="ב" class="hebrew-input" required pattern="[א-ת]+" title="הכנס מספר דף בעברית">
                                 <div class="arrow-buttons">
-                                    <button type="button" class="arrow-btn up" data-target="endDaf">▲</button>
-                                    <button type="button" class="arrow-btn down" data-target="endDaf">▼</button>
+                                    <button type="button" class="arrow-btn up" data-target="endDaf" tabindex="-1">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="endDaf" tabindex="-1">▼</button>
                                 </div>
                             </div>
                             <div class="input-with-arrows">  
@@ -375,8 +375,8 @@
                                     <option value="ב" selected>ב</option>
                                 </select>
                                 <div class="arrow-buttons">
-                                    <button type="button" class="arrow-btn up" data-target="endAmud">▲</button>
-                                    <button type="button" class="arrow-btn down" data-target="endAmud">▼</button>
+                                    <button type="button" class="arrow-btn up" data-target="endAmud" tabindex="-1">▲</button>
+                                    <button type="button" class="arrow-btn down" data-target="endAmud" tabindex="-1">▼</button>
                                 </div>
                             </div>
                         </div>
@@ -569,11 +569,16 @@
         // Add Hebrew input validation
         document.getElementById('startDaf').addEventListener('input', validateHebrewInput);
         document.getElementById('endDaf').addEventListener('input', validateHebrewInput);
-        
+        document.getElementById('tractate').addEventListener('input', validateHebrewInputAllowSpace);
+
         function validateHebrewInput(e) {
             const value = e.target.value;
-            // Remove non-Hebrew characters
             e.target.value = value.replace(/[^א-ת]/g, '');
+        }
+
+        function validateHebrewInputAllowSpace(e) {
+            const value = e.target.value;
+            e.target.value = value.replace(/[^א-ת ]/g, '');
         }
         
         // Tractate search functionality
@@ -686,7 +691,9 @@
             'סא', 'סב', 'סג', 'סד', 'סה', 'סו', 'סז', 'סח', 'סט', 'ע',
             'עא', 'עב', 'עג', 'עד', 'עה', 'עו', 'עז', 'עח', 'עט', 'פ',
             'פא', 'פב', 'פג', 'פד', 'פה', 'פו', 'פז', 'פח', 'פט', 'צ',
-            'צא', 'צב', 'צג', 'צד', 'צה', 'צו', 'צז', 'צח', 'צט', 'ק'
+            'צא', 'צב', 'צג', 'צד', 'צה', 'צו', 'צז', 'צח', 'צט', 'ק',
+            'קא', 'קב', 'קג', 'קד', 'קה', 'קו', 'קז', 'קח', 'קט', 'קי',
+            'קיא', 'קיב', 'קיג', 'קיד', 'קטו', 'קטז', 'קיז', 'קיח', 'קיט', 'קכ'
         ];
         
         // Add keyboard event listeners for page inputs
@@ -756,6 +763,52 @@
                 select.value = 'א';
             }
         }
+
+        // Persist form state in localStorage so the last input is remembered.
+        const STORAGE_KEY = 'dafYomiLastInput';
+        const persistedFieldIds = ['tractate', 'startDaf', 'startAmud', 'endDaf', 'endAmud'];
+
+        function saveFormState() {
+            const state = {};
+            persistedFieldIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) state[id] = el.value;
+            });
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (err) {
+                console.warn('Could not save form state:', err);
+            }
+        }
+
+        function restoreFormState() {
+            let state;
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                state = JSON.parse(raw);
+            } catch (err) {
+                console.warn('Could not restore form state:', err);
+                return;
+            }
+            if (!state) return;
+            persistedFieldIds.forEach(id => {
+                if (state[id] === undefined || state[id] === null) return;
+                const el = document.getElementById(id);
+                if (el) el.value = state[id];
+            });
+        }
+
+        restoreFormState();
+
+        persistedFieldIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', saveFormState);
+            el.addEventListener('input', saveFormState);
+        });
+
+        document.getElementById('downloadForm').addEventListener('submit', saveFormState);
     </script>
 </body>
 </html>
