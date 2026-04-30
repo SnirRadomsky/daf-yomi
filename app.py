@@ -256,6 +256,30 @@ def try_load_existing_page(massechet_num, amud_num):
     return None
 
 
+def strip_kodat_widget(root):
+    """Remove Kodat.co.il floating widget (scripts, host div, iframes) from a BeautifulSoup subtree."""
+    if root is None:
+        return
+    kw = 'kodat'
+    for tag in list(root.find_all(True)):
+        if getattr(tag, 'attrs', None) is None:
+            continue
+        tag_id = tag.get('id') or ''
+        if kw in tag_id.lower():
+            tag.decompose()
+            continue
+        if any(kw in str(c).lower() for c in (tag.get('class') or [])):
+            tag.decompose()
+    for script in list(root.find_all('script')):
+        src = (script.get('src') or '').lower()
+        blob = (script.string or script.get_text() or '').lower()
+        if kw in src or kw in blob:
+            script.decompose()
+    for iframe in list(root.find_all('iframe')):
+        if kw in (iframe.get('src') or '').lower():
+            iframe.decompose()
+
+
 def extract_content_and_title(html_content):
     """Extract the Hebrew title and content - works with both raw and processed pages"""
     if not html_content:
@@ -274,11 +298,16 @@ def extract_content_and_title(html_content):
         title_tag = soup.find('title')
         title = title_tag.get_text().strip() if title_tag else "Unknown"
     
+    def finish(t, node):
+        if node is not None:
+            strip_kodat_widget(node)
+        return t, node
+
     # For already processed files (from pages/ directory), just get the body content
     content_div = soup.find('div', class_='content')
     if content_div:
         print("DEBUG: Found .content div in processed file")
-        return title, content_div
+        return finish(title, content_div)
     
     # For raw files from daf-yomi.com, look for the clsContainer that wraps the Steinsaltz content
     # Structure: <div class="clsContainer"><h2>שטיינזלץ</h2><div class="clsBody">...</div></div>
@@ -289,13 +318,13 @@ def extract_content_and_title(html_content):
             cls_body = container.find('div', class_='clsBody')
             if cls_body:
                 print("DEBUG: Found שטיינזלץ clsBody in clsContainer")
-                return title, cls_body
+                return finish(title, cls_body)
 
     # Fallback: look for ContentPlaceHolderMain_divTextWrapper
     text_wrapper = soup.find('div', id='ContentPlaceHolderMain_divTextWrapper')
     if text_wrapper:
         print("DEBUG: Found ContentPlaceHolderMain_divTextWrapper")
-        return title, text_wrapper
+        return finish(title, text_wrapper)
 
     # Fallback: look for פירוש שטיינזלץ section (legacy format)
     steinsaltz_heading = soup.find('h2', string=lambda text: text and 'פירוש שטיינזלץ' in text)
@@ -315,7 +344,7 @@ def extract_content_and_title(html_content):
                 if 'פירוש שטיינזלץ' in h2.get_text():
                     h2.decompose()
         
-        return title, steinsaltz_section
+        return finish(title, steinsaltz_section)
     
     # Fallback: for processed files, just get the body content minus the h1
     body = soup.find('body')
@@ -326,7 +355,7 @@ def extract_content_and_title(html_content):
         title_in_body = body_copy.find('h1')
         if title_in_body:
             title_in_body.decompose()
-        return title, body_copy
+        return finish(title, body_copy)
     
     print("DEBUG: No content found")
     return title, None
@@ -670,6 +699,7 @@ def create_combined_html(pages, tractate_name, start_daf, start_amud, end_daf, e
         if page_content:
             # Remove the h1 from content to avoid duplication
             content_copy = BeautifulSoup(str(page_content), 'html.parser')
+            strip_kodat_widget(content_copy)
             title_in_content = content_copy.find('h1')
             if title_in_content:
                 title_in_content.decompose()
