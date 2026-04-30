@@ -309,6 +309,53 @@
             appearance: none;
             background-image: none;
         }
+
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #323232;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            max-width: 420px;
+            text-align: center;
+            pointer-events: auto;
+            direction: rtl;
+        }
+
+        .toast.toast-error {
+            background: #c0392b;
+        }
+
+        .toast.toast-warning {
+            background: #e67e22;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .field-invalid input,
+        .field-invalid select {
+            border-color: #e74c3c !important;
+        }
     </style>
 </head>
 <body>
@@ -400,6 +447,8 @@
         <div id="status" class="status"></div>
     </div>
 
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
         let currentEventSource = null;
         
@@ -418,6 +467,11 @@
             if (!formData.tractate || !formData.start_daf || !formData.start_amud || 
                 !formData.end_daf || !formData.end_amud) {
                 showStatus('אנא מלא את כל השדות', 'error');
+                return;
+            }
+
+            if (!runAllValidations()) {
+                showStatus('יש שגיאות בטופס - אנא תקן לפני ההורדה', 'error');
                 return;
             }
             
@@ -566,19 +620,248 @@
             }
         }
         
-        // Add Hebrew input validation
-        document.getElementById('startDaf').addEventListener('input', validateHebrewInput);
-        document.getElementById('endDaf').addEventListener('input', validateHebrewInput);
-        document.getElementById('tractate').addEventListener('input', validateHebrewInputAllowSpace);
+        // ── Toast notifications ──────────────────────────────────────────────
+        let toastQueue = [];
 
-        function validateHebrewInput(e) {
-            const value = e.target.value;
-            e.target.value = value.replace(/[^א-ת]/g, '');
+        function showToast(message, type = 'error', duration = 3500) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => toast.classList.add('visible'));
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('visible');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+            }, duration);
         }
 
+        // ── Tractate last-daf data ────────────────────────────────────────────
+        // Each entry: { lastDaf: <number>, lastAmud: 'א'|'ב' }
+        // Numbers are the last daf number (not page count; Talmud starts at daf ב).
+        // Last daf and last amud per tractate, verified against Sefaria
+        const TRACTATE_LIMITS = {
+            'ברכות':     { lastDaf: 64,  lastAmud: 'א' },
+            'שבת':       { lastDaf: 157, lastAmud: 'ב' },
+            'עירובין':   { lastDaf: 105, lastAmud: 'א' },
+            'פסחים':     { lastDaf: 121, lastAmud: 'ב' },
+            'שקלים':     { lastDaf: 22,  lastAmud: 'א' },
+            'יומא':      { lastDaf: 88,  lastAmud: 'א' },
+            'סוכה':      { lastDaf: 56,  lastAmud: 'ב' },
+            'ביצה':      { lastDaf: 40,  lastAmud: 'ב' },
+            'ראש השנה':  { lastDaf: 35,  lastAmud: 'א' },
+            'תענית':     { lastDaf: 31,  lastAmud: 'א' },
+            'מגילה':     { lastDaf: 32,  lastAmud: 'א' },
+            'מועד קטן':  { lastDaf: 29,  lastAmud: 'א' },
+            'חגיגה':     { lastDaf: 27,  lastAmud: 'א' },
+            'יבמות':     { lastDaf: 122, lastAmud: 'ב' },
+            'כתובות':    { lastDaf: 112, lastAmud: 'ב' },
+            'נדרים':     { lastDaf: 91,  lastAmud: 'ב' },
+            'נזיר':      { lastDaf: 66,  lastAmud: 'ב' },
+            'סוטה':      { lastDaf: 49,  lastAmud: 'ב' },
+            'גיטין':     { lastDaf: 90,  lastAmud: 'ב' },
+            'קידושין':   { lastDaf: 82,  lastAmud: 'ב' },
+            'בבא קמא':   { lastDaf: 119, lastAmud: 'א' },
+            'בבא מציעא': { lastDaf: 119, lastAmud: 'א' },
+            'בבא בתרא':  { lastDaf: 176, lastAmud: 'א' },
+            'סנהדרין':   { lastDaf: 113, lastAmud: 'ב' },
+            'מכות':      { lastDaf: 24,  lastAmud: 'ב' },
+            'שבועות':    { lastDaf: 49,  lastAmud: 'ב' },
+            'עבודה זרה': { lastDaf: 76,  lastAmud: 'א' },
+            'הוריות':    { lastDaf: 14,  lastAmud: 'א' },
+            'זבחים':     { lastDaf: 120, lastAmud: 'א' },
+            'מנחות':     { lastDaf: 110, lastAmud: 'א' },
+            'חולין':     { lastDaf: 142, lastAmud: 'א' },
+            'בכורות':    { lastDaf: 61,  lastAmud: 'א' },
+            'ערכין':     { lastDaf: 34,  lastAmud: 'א' },
+            'תמורה':     { lastDaf: 34,  lastAmud: 'א' },
+            'כריתות':    { lastDaf: 28,  lastAmud: 'ב' },
+            'מעילה':     { lastDaf: 22,  lastAmud: 'א' },
+            'תמיד':      { lastDaf: 33,  lastAmud: 'ב' },
+            'מדות':      { lastDaf: 37,  lastAmud: 'א' },
+            'קינים':     { lastDaf: 25,  lastAmud: 'א' },
+            'נדה':       { lastDaf: 73,  lastAmud: 'א' },
+        };
+
+        // ── Hebrew number helpers ─────────────────────────────────────────────
+        function dafToNumber(hebrewDaf) {
+            return hebrewNumbers.indexOf(hebrewDaf) + 1; // index 0 = א = 1, index 1 = ב = 2
+        }
+
+        function amudToNumber(amud) {
+            return amud === 'א' ? 1 : 2;
+        }
+
+        // Compare two daf+amud combos. Returns negative if a < b, 0 if equal, positive if a > b.
+        function compareDafAmud(dafA, amudA, dafB, amudB) {
+            const na = dafToNumber(dafA) * 2 + amudToNumber(amudA);
+            const nb = dafToNumber(dafB) * 2 + amudToNumber(amudB);
+            return na - nb;
+        }
+
+        function getCurrentTractate() {
+            return document.getElementById('tractate').value.trim();
+        }
+
+        // ── Field-level visual feedback ───────────────────────────────────────
+        function markInvalid(containerId) {
+            const el = document.getElementById(containerId);
+            if (el) el.closest('.input-with-arrows')?.classList.add('field-invalid');
+        }
+
+        function markValid(containerId) {
+            const el = document.getElementById(containerId);
+            if (el) el.closest('.input-with-arrows')?.classList.remove('field-invalid');
+        }
+
+        function clearAllInvalid() {
+            ['startDaf','startAmud','endDaf','endAmud'].forEach(markValid);
+        }
+
+        // ── Core validation ───────────────────────────────────────────────────
+        function validateDafAgainstTractate(dafValue, amudValue, fieldId, label, silent) {
+            const tractate = getCurrentTractate();
+            const limit = TRACTATE_LIMITS[tractate];
+            if (!limit || !dafValue) return true;
+
+            const dafNum = dafToNumber(dafValue);
+            const amudNum = amudToNumber(amudValue);
+
+            if (dafNum <= 0) return true; // unknown daf string - let other validation handle
+
+            const lastDafNum = limit.lastDaf;
+            if (dafNum > lastDafNum) {
+                markInvalid(fieldId);
+                if (!silent) showToast(`${label}: דף ${dafValue} חורג מגבול מסכת ${tractate} (עד דף ${hebrewNumbers[lastDafNum - 1]} עמוד ${limit.lastAmud})`);
+                return false;
+            }
+
+            // Check that if this is the last daf, amud doesn't exceed lastAmud
+            if (dafNum === lastDafNum && limit.lastAmud === 'א' && amudNum > 1) {
+                const amudFieldId = fieldId.includes('start') ? 'startAmud' : 'endAmud';
+                markInvalid(amudFieldId);
+                if (!silent) showToast(`מסכת ${tractate} מסתיימת בעמוד א של דף ${hebrewNumbers[lastDafNum - 1]} - עמוד ב לא קיים`);
+                return false;
+            }
+
+            markValid(fieldId);
+            markValid(fieldId.includes('start') ? 'startAmud' : 'endAmud');
+            return true;
+        }
+
+        function validateRange(silent) {
+            const startDaf = document.getElementById('startDaf').value;
+            const startAmud = document.getElementById('startAmud').value;
+            const endDaf = document.getElementById('endDaf').value;
+            const endAmud = document.getElementById('endAmud').value;
+
+            if (!startDaf || !endDaf) return true;
+            if (dafToNumber(startDaf) <= 0 || dafToNumber(endDaf) <= 0) return true;
+
+            if (compareDafAmud(startDaf, startAmud, endDaf, endAmud) > 0) {
+                markInvalid('endDaf');
+                markInvalid('endAmud');
+                if (!silent) showToast(`טווח לא תקין: דף ${startDaf} עמוד ${startAmud} מאוחר יותר מ-${endDaf} עמוד ${endAmud}`);
+                return false;
+            }
+
+            markValid('endDaf');
+            markValid('endAmud');
+            return true;
+        }
+
+        function runAllValidations(silent) {
+            clearAllInvalid();
+            const startDaf = document.getElementById('startDaf').value;
+            const startAmud = document.getElementById('startAmud').value;
+            const endDaf = document.getElementById('endDaf').value;
+            const endAmud = document.getElementById('endAmud').value;
+
+            let ok = true;
+            ok = validateDafAgainstTractate(startDaf, startAmud, 'startDaf', 'דף התחלה', silent) && ok;
+            ok = validateDafAgainstTractate(endDaf, endAmud, 'endDaf', 'דף סיום', silent) && ok;
+            ok = validateRange(silent) && ok;
+            return ok;
+        }
+
+        // ── Hebrew input validation (with clamping + toast) ──────────────────
+        function handleDafInput(e, amudSelectId) {
+            // 1. Strip non-Hebrew
+            const beforeStrip = e.target.value;
+            e.target.value = beforeStrip.replace(/[^א-ת]/g, '');
+            if (e.target.value !== beforeStrip) {
+                showToast('ניתן להזין אותיות עבריות בלבד', 'warning', 2500);
+            }
+
+            // 2. Clamp to tractate max while the user is still typing
+            const tractate = getCurrentTractate();
+            const limit = TRACTATE_LIMITS[tractate];
+            if (limit && e.target.value) {
+                const dafNum = dafToNumber(e.target.value);
+                // Only clamp when the typed value is a valid Hebrew number (known in the array)
+                if (dafNum > 0 && dafNum > limit.lastDaf) {
+                    const clamped = hebrewNumbers[limit.lastDaf - 1];
+                    e.target.value = clamped;
+                    // Also fix amud if needed
+                    const amudSelect = document.getElementById(amudSelectId);
+                    if (limit.lastAmud === 'א') amudSelect.value = 'א';
+                    showToast(`מסכת ${tractate} מגיעה רק עד דף ${clamped} עמוד ${limit.lastAmud}`, 'error');
+                    runAllValidations(true);
+                    return;
+                }
+            }
+
+            runAllValidations();
+        }
+
+        document.getElementById('startDaf').addEventListener('input', function(e) {
+            handleDafInput(e, 'startAmud');
+        });
+
+        document.getElementById('endDaf').addEventListener('input', function(e) {
+            handleDafInput(e, 'endAmud');
+        });
+
+        document.getElementById('tractate').addEventListener('input', validateHebrewInputAllowSpace);
+
+        document.getElementById('startAmud').addEventListener('change', function() {
+            // If last daf is selected and tractate ends on א, block ב
+            const tractate = getCurrentTractate();
+            const limit = TRACTATE_LIMITS[tractate];
+            if (limit && limit.lastAmud === 'א') {
+                const dafNum = dafToNumber(document.getElementById('startDaf').value);
+                if (dafNum === limit.lastDaf && this.value === 'ב') {
+                    this.value = 'א';
+                    showToast(`מסכת ${tractate} מסתיימת בעמוד א של דף ${hebrewNumbers[limit.lastDaf - 1]}`, 'error');
+                    return;
+                }
+            }
+            runAllValidations();
+        });
+
+        document.getElementById('endAmud').addEventListener('change', function() {
+            const tractate = getCurrentTractate();
+            const limit = TRACTATE_LIMITS[tractate];
+            if (limit && limit.lastAmud === 'א') {
+                const dafNum = dafToNumber(document.getElementById('endDaf').value);
+                if (dafNum === limit.lastDaf && this.value === 'ב') {
+                    this.value = 'א';
+                    showToast(`מסכת ${tractate} מסתיימת בעמוד א של דף ${hebrewNumbers[limit.lastDaf - 1]}`, 'error');
+                    return;
+                }
+            }
+            runAllValidations();
+        });
+
         function validateHebrewInputAllowSpace(e) {
-            const value = e.target.value;
-            e.target.value = value.replace(/[^א-ת ]/g, '');
+            const before = e.target.value;
+            e.target.value = before.replace(/[^א-ת ]/g, '');
+            if (e.target.value !== before) showToast('ניתן להזין אותיות עבריות בלבד', 'warning', 2500);
+            runAllValidations();
         }
         
         // Tractate search functionality
@@ -668,6 +951,7 @@
             tractateInput.value = option.dataset.value;
             hideDropdown();
             selectedIndex = -1;
+            runAllValidations();
         }
         
         function showDropdown() {
@@ -693,7 +977,13 @@
             'פא', 'פב', 'פג', 'פד', 'פה', 'פו', 'פז', 'פח', 'פט', 'צ',
             'צא', 'צב', 'צג', 'צד', 'צה', 'צו', 'צז', 'צח', 'צט', 'ק',
             'קא', 'קב', 'קג', 'קד', 'קה', 'קו', 'קז', 'קח', 'קט', 'קי',
-            'קיא', 'קיב', 'קיג', 'קיד', 'קטו', 'קטז', 'קיז', 'קיח', 'קיט', 'קכ'
+            'קיא', 'קיב', 'קיג', 'קיד', 'קטו', 'קטז', 'קיז', 'קיח', 'קיט', 'קכ',
+            'קכא', 'קכב', 'קכג', 'קכד', 'קכה', 'קכו', 'קכז', 'קכח', 'קכט', 'קל',
+            'קלא', 'קלב', 'קלג', 'קלד', 'קלה', 'קלו', 'קלז', 'קלח', 'קלט', 'קמ',
+            'קמא', 'קמב', 'קמג', 'קמד', 'קמה', 'קמו', 'קמז', 'קמח', 'קמט', 'קנ',
+            'קנא', 'קנב', 'קנג', 'קנד', 'קנה', 'קנו', 'קנז', 'קנח', 'קנט', 'קס',
+            'קסא', 'קסב', 'קסג', 'קסד', 'קסה', 'קסו', 'קסז', 'קסח', 'קסט', 'קע',
+            'קעא', 'קעב', 'קעג', 'קעד', 'קעה', 'קעו'
         ];
         
         // Add keyboard event listeners for page inputs
@@ -740,27 +1030,45 @@
             const input = document.getElementById(targetId);
             const currentValue = input.value;
             const currentIndex = hebrewNumbers.indexOf(currentValue);
-            
+
+            const tractate = getCurrentTractate();
+            const limit = TRACTATE_LIMITS[tractate];
+            const maxIndex = limit ? limit.lastDaf - 1 : hebrewNumbers.length - 1;
+
             let newIndex;
             if (isNext) {
-                newIndex = Math.min(currentIndex + 1, hebrewNumbers.length - 1);
+                newIndex = Math.min(currentIndex + 1, maxIndex);
             } else {
                 newIndex = Math.max(currentIndex - 1, 1); // Don't go below ב (index 1)
             }
-            
+
             if (newIndex !== currentIndex && newIndex >= 1) {
                 input.value = hebrewNumbers[newIndex];
+                runAllValidations();
             }
         }
         
         function adjustAmud(targetId, isNext) {
             const select = document.getElementById(targetId);
             const currentValue = select.value;
-            
+            const dafInputId = targetId === 'startAmud' ? 'startDaf' : 'endDaf';
+
             if (isNext && currentValue === 'א') {
+                // Check if we'd be going to ב on the last daf of a tractate that ends on א
+                const tractate = getCurrentTractate();
+                const limit = TRACTATE_LIMITS[tractate];
+                if (limit && limit.lastAmud === 'א') {
+                    const dafNum = dafToNumber(document.getElementById(dafInputId).value);
+                    if (dafNum === limit.lastDaf) {
+                        showToast(`מסכת ${tractate} מסתיימת בעמוד א של דף ${hebrewNumbers[limit.lastDaf - 1]}`, 'error');
+                        return;
+                    }
+                }
                 select.value = 'ב';
+                runAllValidations();
             } else if (!isNext && currentValue === 'ב') {
                 select.value = 'א';
+                runAllValidations();
             }
         }
 
@@ -800,6 +1108,12 @@
         }
 
         restoreFormState();
+        // Validate restored state silently (no toast on page load, just highlight invalid fields)
+        setTimeout(() => {
+            const startDaf = document.getElementById('startDaf').value;
+            const endDaf = document.getElementById('endDaf').value;
+            if (startDaf && endDaf) runAllValidations(true);
+        }, 0);
 
         persistedFieldIds.forEach(id => {
             const el = document.getElementById(id);
